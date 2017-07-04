@@ -225,7 +225,7 @@ func periodicFree() {
 		idle := float64((ms.HeapIdle - ms.HeapReleased) / MB)
 
 		if inUse+idle > *maxmemory {
-			fmt.Printf("Inuse: %.0f idle: %.0f. Freeing OS memory", inUse, idle)
+			fmt.Printf("Inuse: %.0f idle: %.0f. Freeing OS memory\n", inUse, idle)
 			x.UpdateMemoryStatus(false)
 			debug.FreeOSMemory()
 		} else {

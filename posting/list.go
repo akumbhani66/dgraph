@@ -94,9 +94,11 @@ func (l *List) decr() {
 	for _, p := range l.plist.Postings {
 		postingPool.Put(p)
 	}
-	l.plist.Postings = l.plist.Postings[:0]
-	l.plist.Uids = l.plist.Uids[:0]
-	postingListPool.Put(l.plist)
+	if l.plist != emptyList {
+		l.plist.Postings = l.plist.Postings[:0]
+		l.plist.Uids = l.plist.Uids[:0]
+		postingListPool.Put(l.plist)
+	}
 	listPool.Put(l)
 }
 
@@ -661,6 +663,12 @@ func (l *List) SyncIfDirty(ctx context.Context) (committed bool, err error) {
 		final.Checksum = h.Sum(nil)
 		data, err = final.Marshal()
 		x.Checkf(err, "Unable to marshal posting list")
+	}
+
+	if l.plist != emptyList {
+		l.plist.Uids = l.plist.Uids[:0]
+		l.plist.Postings = l.plist.Postings[:0]
+		postingListPool.Put(l.plist)
 	}
 	l.plist = final
 

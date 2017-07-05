@@ -494,7 +494,11 @@ func (l *List) addMutation(ctx context.Context, t *protos.DirectedEdge) (bool, e
 
 func (l *List) delete(ctx context.Context, attr string) error {
 	l.AssertLock()
-
+	if l.plist != emptyList {
+		l.plist.Uids = l.plist.Uids[:0]
+		l.plist.Postings = l.plist.Postings[:0]
+		postingListPool.Put(l.plist)
+	}
 	l.plist = emptyList
 	l.mlayer = l.mlayer[:0] // Clear the mutation layer.
 	atomic.StoreInt32(&l.deleteAll, 1)

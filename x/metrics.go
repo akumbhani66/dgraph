@@ -19,7 +19,6 @@ package x
 import (
 	"expvar"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/codahale/hdrhistogram"
@@ -72,21 +71,28 @@ func init() {
 	TotalMemory = expvar.NewInt("totalMemory")
 	PredicateStats = expvar.NewMap("predicateStats")
 	PlValuesDst = expvar.NewMap("plValuesDst")
+
 	PlValueHist = hdrhistogram.New(1, 1<<40, 4)
 
-	ticker := time.NewTicker(2 * time.Second)
-	defer ticker.Stop()
+	ticker := time.NewTicker(5 * time.Second)
 
 	// # hacky: Find better way later
 	go func() {
+		val50 := new(expvar.Int)
+		val90 := new(expvar.Int)
+		val99 := new(expvar.Int)
+		val99_99 := new(expvar.Int)
 		for {
 			select {
 			case <-ticker.C:
-				for _, b := range PlValueHist.CumulativeDistribution() {
-					val := new(expvar.Int)
-					val.Set(b.ValueAt)
-					PlValuesDst.Set(strconv.FormatFloat(b.Quantile, 'g', -1, 64), val)
-				}
+				val50.Set(PlValueHist.ValueAtQuantile(50.0))
+				PlValuesDst.Set("50", val50)
+				val90.Set(PlValueHist.ValueAtQuantile(90.0))
+				PlValuesDst.Set("90", val90)
+				val99.Set(PlValueHist.ValueAtQuantile(99.0))
+				PlValuesDst.Set("99", val99)
+				val99_99.Set(PlValueHist.ValueAtQuantile(99.99))
+				PlValuesDst.Set("99.99", val99_99)
 			}
 		}
 	}()

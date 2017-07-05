@@ -19,7 +19,10 @@ package x
 import (
 	"expvar"
 	"net/http"
+	"strconv"
+	"time"
 
+	"github.com/codahale/hdrhistogram"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -44,9 +47,10 @@ var (
 	TotalMemory      *expvar.Int
 
 	PredicateStats *expvar.Map
+	PlValuesDst    *expvar.Map
 
-	// TODO:may be some stats about pl lengths - histogram
-	// histograms of read latencies etc
+	PlValueHist *hdrhistogram.Histogram
+	// TODO: Request statistics, latencies, 500, timeouts
 
 )
 
@@ -67,6 +71,25 @@ func init() {
 	HeapIdle = expvar.NewInt("heapIdle")
 	TotalMemory = expvar.NewInt("totalMemory")
 	PredicateStats = expvar.NewMap("predicateStats")
+	PlValuesDst = expvar.NewMap("plValuesDst")
+	PlValueHist = hdrhistogram.New(1, 1<<40, 4)
+
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	// # hacky: Find better way later
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				for _, b := range PlValueHist.CumulativeDistribution() {
+					val := new(expvar.Int)
+					val.Set(b.ValueAt)
+					PlValuesDst.Set(strconv.FormatFloat(b.Quantile, 'g', -1, 64), val)
+				}
+			}
+		}
+	}()
 
 	expvarCollector := prometheus.NewExpvarCollector(map[string]*prometheus.Desc{
 		"postingReads": prometheus.NewDesc(
@@ -149,7 +172,12 @@ func init() {
 			"predicateStats",
 			[]string{"name"}, nil,
 		),
+		"plValuesDst": prometheus.NewDesc(
+			"plValuesDst",
+			"plValuesDst",
+			[]string{"quantile"}, nil,
+		),
 	})
 	prometheus.MustRegister(expvarCollector)
-	http.Handle("/debug/prometheus", prometheus.Handler())
+	http.Handle("/prometheus_metrics", prometheus.Handler())
 }

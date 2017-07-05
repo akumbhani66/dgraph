@@ -209,6 +209,9 @@ func getNew(key []byte, pstore *badger.KV) *List {
 	}
 	val := item.Value()
 	x.BytesRead.Add(int64(len(val)))
+	if err = x.PlValueHist.RecordValue(int64(len(val))); err != nil {
+		log.Fatalf("Unable to record hist: %v", err)
+	}
 
 	l.plist = postingListPool.Get().(*protos.PostingList)
 	if val != nil {

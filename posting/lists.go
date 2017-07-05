@@ -46,6 +46,8 @@ var (
 	commitFraction   = flag.Float64("gentlecommit", 0.10, "Fraction of dirty posting lists to commit every few seconds.")
 	lhmapNumShards   = runtime.NumCPU() * 4
 	dummyPostingList []byte // Used for indexing.
+
+	// expvars
 )
 
 const (
@@ -271,8 +273,8 @@ func periodicCommit() {
 			// Okay, we exceed the max memory threshold.
 			// Stop the world, and deal with this first.
 			if inUse > 0.75*(*maxmemory) {
-				log.Printf("Memory usage close to threshold. STW. Allocated MB: %v, 
-					inuse: %v, total: %v\n", inUse, idle, inUse + idle)
+				log.Printf("Memory usage close to threshold. STW. Allocated MB: %v, inuse: %v, total: %v\n",
+					inUse, idle, inUse+idle)
 				go evictShards(1)
 			} else {
 				log.Printf("Cur: %v. Idle: %v, total: %v, STW: %v, NumGoroutines: %v\n",

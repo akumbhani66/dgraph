@@ -22,6 +22,7 @@ import (
 	"crypto/tls"
 	"encoding/gob"
 	"encoding/json"
+	_ "expvar"
 	"flag"
 	"fmt"
 	"io/ioutil"

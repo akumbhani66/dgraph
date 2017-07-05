@@ -19,6 +19,8 @@ package posting
 
 import (
 	"sync"
+
+	"github.com/dgraph-io/dgraph/x"
 )
 
 type listMapShard struct {
@@ -85,6 +87,7 @@ func (s *listMapShard) putIfMissing(key uint64, val *List) *List {
 	if oldVal != nil {
 		return oldVal
 	}
+	x.LhMapSize.Add(1)
 	s.m[key] = val
 	return val
 }
@@ -98,10 +101,12 @@ func (s *listMap) PutIfMissing(key uint64, val *List) *List {
 func (s *listMapShard) eachWithDelete(f func(key uint64, val *List)) {
 	s.Lock()
 	defer s.Unlock()
+	l := len(s.m)
 	for k, v := range s.m {
 		delete(s.m, k)
 		f(k, v)
 	}
+	x.LhMapSize.Add(int64(-1 * l))
 }
 
 // EachWithDelete iterates over listMap and for each key, value pair, deletes the

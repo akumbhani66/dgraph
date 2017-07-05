@@ -194,10 +194,12 @@ func getNew(key []byte, pstore *badger.KV) *List {
 	defer l.Unlock()
 
 	pendingReads <- struct{}{}
+	x.PendingReads.Set(int64(len(pendingReads)))
 	defer func() { <-pendingReads }()
 	var item badger.KVItem
 	var err error
 	for i := 0; i < 10; i++ {
+		x.PostingReads.Add(1)
 		if err = pstore.Get(l.key, &item); err == nil {
 			break
 		}
@@ -210,6 +212,7 @@ func getNew(key []byte, pstore *badger.KV) *List {
 	l.plist = postingListPool.Get().(*protos.PostingList)
 	if val != nil {
 		x.Checkf(l.plist.Unmarshal(val), "Unable to Unmarshal PostingList from store")
+		x.PostingLen.Add(int64(len(l.plist.Uids)))
 	}
 	return l
 }

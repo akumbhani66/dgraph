@@ -287,6 +287,7 @@ func (n *node) ProposeAndWait(ctx context.Context, proposal *protos.Proposal) er
 		return x.Errorf("RAFT isn't initialized yet")
 	}
 	pendingProposals <- struct{}{}
+	x.PendingProposals.Set(int64(len(pendingProposals)))
 	defer func() { <-pendingProposals }()
 	if ctx.Err() != nil {
 		return ctx.Err()

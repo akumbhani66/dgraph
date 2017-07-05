@@ -253,6 +253,7 @@ func periodicCommit() {
 		case <-ticker.C:
 			if len(dirtyMap) != dsize {
 				dsize = len(dirtyMap)
+				x.DirtyMapSize.Set(int64(dsize))
 				log.Printf("Dirty map size: %d\n", dsize)
 			}
 
@@ -265,6 +266,9 @@ func periodicCommit() {
 
 			fraction := math.Min(1.0, *commitFraction*math.Exp(float64(dsize)/1000000.0))
 			gentleCommit(dirtyMap, pending, fraction)
+			x.MemoryInUse.Set(int64(inUse))
+			x.HeapIdle.Set(int64(idle))
+			x.TotalMemory.Set(int64(inUse + idle))
 
 			// Flush out the dirtyChan after acquiring lock. This allow posting lists which
 			// are currently being processed to not get stuck on dirtyChan, which won't be
@@ -272,6 +276,7 @@ func periodicCommit() {
 
 			// Okay, we exceed the max memory threshold.
 			// Stop the world, and deal with this first.
+			x.NumGoRoutines.Set(int64(runtime.NumGoroutine()))
 			if inUse > 0.75*(*maxmemory) {
 				log.Printf("Memory usage close to threshold. STW. Allocated MB: %v, inuse: %v, total: %v\n",
 					inUse, idle, inUse+idle)
@@ -491,6 +496,7 @@ func batchSync(i int) {
 						wb = badger.EntriesSet(wb, e.key, e.val)
 					}
 				}
+				x.PostingWrites.Add(1)
 				pstore.BatchSet(wb)
 				wb = wb[:0]
 

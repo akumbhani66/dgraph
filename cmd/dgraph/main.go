@@ -22,7 +22,6 @@ import (
 	"crypto/tls"
 	"encoding/gob"
 	"encoding/json"
-	_ "expvar"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -179,6 +178,7 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	// Add a limit on how many pending queries can be run in the system.
 	pendingQueries <- struct{}{}
+	x.PendingQueries.Set(int64(len(pendingQueries)))
 	defer func() { <-pendingQueries }()
 
 	addCorsHeaders(w)
@@ -466,6 +466,7 @@ func (s *grpcServer) Run(ctx context.Context,
 		return resp, err
 	}
 	pendingQueries <- struct{}{}
+	x.PendingQueries.Set(int64(len(pendingQueries)))
 	defer func() { <-pendingQueries }()
 	if ctx.Err() != nil {
 		return resp, ctx.Err()

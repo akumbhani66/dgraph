@@ -208,6 +208,7 @@ func getNew(key []byte, pstore *badger.KV) *List {
 		x.Fatalf("Unable to retrieve val for key: %q. Error: %v", err, l.key)
 	}
 	val := item.Value()
+	x.BytesRead.Add(int64(len(val)))
 
 	l.plist = postingListPool.Get().(*protos.PostingList)
 	if val != nil {
@@ -215,7 +216,6 @@ func getNew(key []byte, pstore *badger.KV) *List {
 			fmt.Printf("pl size: %v %q\n", len(val), l.key)
 		}
 		x.Checkf(l.plist.Unmarshal(val), "Unable to Unmarshal PostingList from store")
-		x.PostingLen.Add(int64(len(l.plist.Uids)))
 	}
 	return l
 }

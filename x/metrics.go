@@ -27,12 +27,14 @@ var (
 	// These are cummulative
 	PostingReads  *expvar.Int
 	PostingWrites *expvar.Int
-	PostingLen    *expvar.Int
+	BytesRead     *expvar.Int
+	BytesWrite    *expvar.Int
+	EvictedPls    *expvar.Int
+	NumMutations  *expvar.Int
 
 	// value at particular point of time
-	PendingQueries *expvar.Int
-	PendingReads   *expvar.Int
-	// TODO: Make it per group
+	PendingQueries   *expvar.Int
+	PendingReads     *expvar.Int
 	PendingProposals *expvar.Int
 	LhMapSize        *expvar.Int
 	DirtyMapSize     *expvar.Int
@@ -41,12 +43,11 @@ var (
 	HeapIdle         *expvar.Int
 	TotalMemory      *expvar.Int
 
-	// TODO: Add some stats about predicates, length of each
-	// may be some stats about pl lengths
-	// query times
+	PredicateStats *expvar.Map
 
-	// TODO: create a map of variable name and expvar, so that
-	// we can iterate and export
+	// TODO:may be some stats about pl lengths - histogram
+	// histograms of read latencies etc
+
 )
 
 func init() {
@@ -54,14 +55,18 @@ func init() {
 	PostingWrites = expvar.NewInt("postingWrites")
 	PendingReads = expvar.NewInt("pendingReads")
 	PendingProposals = expvar.NewInt("pendingProposals")
-	PostingLen = expvar.NewInt("postingLen")
+	BytesRead = expvar.NewInt("bytesRead")
+	BytesWrite = expvar.NewInt("bytesWrite")
+	EvictedPls = expvar.NewInt("evictedPls")
+	NumMutations = expvar.NewInt("numMutations")
 	PendingQueries = expvar.NewInt("pendingQueries")
 	DirtyMapSize = expvar.NewInt("dirtyMapSize")
 	LhMapSize = expvar.NewInt("lhMapSize")
 	NumGoRoutines = expvar.NewInt("numGoRoutines")
 	MemoryInUse = expvar.NewInt("memoryInUse")
-	HeapIdle = expvar.NewInt("heapIdle ")
+	HeapIdle = expvar.NewInt("heapIdle")
 	TotalMemory = expvar.NewInt("totalMemory")
+	PredicateStats = expvar.NewMap("predicateStats")
 
 	expvarCollector := prometheus.NewExpvarCollector(map[string]*prometheus.Desc{
 		"postingReads": prometheus.NewDesc(
@@ -84,9 +89,24 @@ func init() {
 			"cummulative pending proposals",
 			nil, nil,
 		),
-		"postingLen": prometheus.NewDesc(
-			"posting_len",
-			"cummulative posting length",
+		"bytesRead": prometheus.NewDesc(
+			"bytes_read",
+			"cummulative bytes Read",
+			nil, nil,
+		),
+		"bytesWrite": prometheus.NewDesc(
+			"bytes_write",
+			"cummulative bytes Written",
+			nil, nil,
+		),
+		"evictedPls": prometheus.NewDesc(
+			"evictedPls",
+			"cummulative evictedPls",
+			nil, nil,
+		),
+		"numMutations": prometheus.NewDesc(
+			"numMutations",
+			"cummulative numMutations",
 			nil, nil,
 		),
 		"pendingQueries": prometheus.NewDesc(
@@ -114,7 +134,22 @@ func init() {
 			"memoryInUse",
 			nil, nil,
 		),
+		"heapIdle": prometheus.NewDesc(
+			"heapIdle",
+			"heapIdle",
+			nil, nil,
+		),
+		"totalMemory": prometheus.NewDesc(
+			"totalMemory",
+			"totalMemory",
+			nil, nil,
+		),
+		"predicateStats": prometheus.NewDesc(
+			"predicateStats",
+			"predicateStats",
+			[]string{"name"}, nil,
+		),
 	})
 	prometheus.MustRegister(expvarCollector)
-	http.Handle("/debug/metrics", prometheus.Handler())
+	http.Handle("/debug/prometheus", prometheus.Handler())
 }

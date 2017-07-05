@@ -20,6 +20,7 @@ package posting
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"math"
 	"time"
 
@@ -138,6 +139,7 @@ func addIndexMutation(ctx context.Context, edge *protos.DirectedEdge,
 
 	x.AssertTrue(plist != nil)
 	_, err := plist.AddMutation(ctx, edge)
+	x.PredicateStats.Add(fmt.Sprintf("%s[Index]", edge.Attr), 1)
 	if err != nil {
 		if tr, ok := trace.FromContext(ctx); ok {
 			tr.LazyPrintf("Error adding/deleting %s for attr %s entity %d: %v",
@@ -180,6 +182,7 @@ func addReverseMutation(ctx context.Context, t *protos.DirectedEdge) error {
 	plist.Lock()
 	countBefore := plist.length(0)
 	_, err := plist.addMutation(ctx, edge)
+	x.PredicateStats.Add(fmt.Sprintf("%s[Reverse]", edge.Attr), 1)
 	countAfter := plist.length(0)
 	plist.Unlock()
 	if err != nil {
@@ -310,6 +313,7 @@ func (l *List) AddMutationWithIndex(ctx context.Context, t *protos.DirectedEdge)
 		}
 		countBefore := l.length(0)
 		_, err := l.addMutation(ctx, t)
+		x.PredicateStats.Add(t.Attr, 1)
 		countAfter := l.length(0)
 		l.Unlock()
 

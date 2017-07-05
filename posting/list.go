@@ -51,6 +51,7 @@ var (
 	ErrNoValue   = fmt.Errorf("No value found")
 	emptyPosting = &protos.Posting{}
 	emptyList    = &protos.PostingList{}
+	pendingReads = make(chan struct{}, 1000)
 )
 
 const (
@@ -181,6 +182,8 @@ func getNew(key []byte, pstore *badger.KV) *List {
 
 	defer l.Unlock()
 
+	pendingReads <- struct{}{}
+	defer func() { <-pendingReads }()
 	var item badger.KVItem
 	var err error
 	for i := 0; i < 10; i++ {

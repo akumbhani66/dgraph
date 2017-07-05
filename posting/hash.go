@@ -107,6 +107,7 @@ func (s *listMapShard) eachWithDelete(f func(key uint64, val *List)) {
 		f(k, v)
 	}
 	x.LhMapSize.Add(int64(-1 * l))
+	x.EvictedPls.Add(int64(l))
 }
 
 // EachWithDelete iterates over listMap and for each key, value pair, deletes the

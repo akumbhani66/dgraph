@@ -211,6 +211,9 @@ func getNew(key []byte, pstore *badger.KV) *List {
 
 	l.plist = postingListPool.Get().(*protos.PostingList)
 	if val != nil {
+		if len(val) > (1 << 30) {
+			fmt.Printf("pl size: %v %q\n", len(val), l.key)
+		}
 		x.Checkf(l.plist.Unmarshal(val), "Unable to Unmarshal PostingList from store")
 		x.PostingLen.Add(int64(len(l.plist.Uids)))
 	}

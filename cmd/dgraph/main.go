@@ -43,6 +43,7 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger"
+	"github.com/dgraph-io/badger/table"
 	"golang.org/x/net/context"
 	"golang.org/x/net/trace"
 	"google.golang.org/grpc"
@@ -750,6 +751,7 @@ func main() {
 	opt.SyncWrites = true
 	opt.Dir = *postingDir
 	opt.ValueDir = *postingDir
+	opt.MapTablesTo = table.MemoryMap
 	ps, err := badger.NewKV(&opt)
 	x.Checkf(err, "Error while creating badger KV posting store")
 	defer ps.Close()

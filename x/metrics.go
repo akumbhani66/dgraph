@@ -185,5 +185,5 @@ func init() {
 		),
 	})
 	prometheus.MustRegister(expvarCollector)
-	http.Handle("/prometheus_metrics", prometheus.Handler())
+	http.Handle("/debug/prometheus_metrics", prometheus.Handler())
 }

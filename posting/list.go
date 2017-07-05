@@ -131,13 +131,21 @@ type PIterator struct {
 	valid      bool
 }
 
+func findUidIndex(pl *protos.PostingList, afterUid uint64) int {
+	ulen := len(pl.Uids) / 8
+	return sort.Search(ulen, func(idx int) bool {
+		i := idx * 8
+		uid := binary.BigEndian.Uint64(pl.Uids[i : i+8])
+		return afterUid < uid
+	})
+}
+
 func (it *PIterator) Init(pl *protos.PostingList, afterUid uint64) {
 	it.pl = pl
 	it.uidPosting = &protos.Posting{}
-	it.ulen, it.plen = len(pl.Uids), len(pl.Postings)
-	it.uidx = sort.Search(it.ulen, func(idx int) bool {
-		return afterUid < pl.Uids[idx]
-	})
+	it.ulen = len(pl.Uids) / 8
+	it.plen = len(pl.Postings)
+	it.uidx = findUidIndex(pl, afterUid)
 	it.pidx = sort.Search(it.plen, func(idx int) bool {
 		p := pl.Postings[idx]
 		return afterUid < p.Uid
@@ -159,16 +167,19 @@ func (it *PIterator) Valid() bool {
 }
 
 func (it *PIterator) Posting() *protos.Posting {
+	i := it.uidx * 8
+	uid := binary.BigEndian.Uint64(it.pl.Uids[i : i+8])
+
 	if it.pidx < it.plen {
-		for it.pl.Postings[it.pidx].Uid < it.pl.Uids[it.uidx] {
+		for it.pl.Postings[it.pidx].Uid < uid {
 			it.pidx++
 		}
 
-		if it.pidx < it.plen && it.pl.Postings[it.pidx].Uid == it.pl.Uids[it.uidx] {
+		if it.pidx < it.plen && it.pl.Postings[it.pidx].Uid == uid {
 			return it.pl.Postings[it.pidx]
 		}
 	}
-	it.uidPosting.Uid = it.pl.Uids[it.uidx]
+	it.uidPosting.Uid = uid
 	return it.uidPosting
 }
 
@@ -598,16 +609,14 @@ func (l *List) length(afterUid uint64) int {
 	pl := l.plist
 
 	if afterUid > 0 {
-		uidx = sort.Search(len(pl.Uids), func(idx int) bool {
-			return afterUid < pl.Uids[idx]
-		})
+		uidx = findUidIndex(pl, afterUid)
 		midx = sort.Search(len(l.mlayer), func(idx int) bool {
 			mp := l.mlayer[idx]
 			return afterUid < mp.Uid
 		})
 	}
 
-	count := len(pl.Uids) - uidx
+	count := len(pl.Uids)/8 - uidx
 	for _, p := range l.mlayer[midx:] {
 		if p.Op == Add {
 			count++
@@ -638,6 +647,12 @@ func (l *List) SyncIfDirty(ctx context.Context) (committed bool, err error) {
 	}
 
 	final := postingListPool.Get().(*protos.PostingList)
+	numUids := l.length(0)
+	if cap(final.Uids) < 8*numUids {
+		final.Uids = make([]byte, 8*numUids)
+	}
+	final.Uids = final.Uids[:8*numUids]
+
 	var ubuf [16]byte
 	h := md5.New()
 	count := 0
@@ -649,9 +664,10 @@ func (l *List) SyncIfDirty(ctx context.Context) (committed bool, err error) {
 		h.Write(ubuf[0:n])
 		h.Write(p.Value)
 		h.Write([]byte(p.Label))
-		count++
 
-		final.Uids = append(final.Uids, p.Uid)
+		i := 8 * count
+		binary.BigEndian.PutUint64(final.Uids[i:i+8], p.Uid)
+		count++
 
 		if p.Facets != nil || p.Value != nil || len(p.Metadata) != 0 || len(p.Label) != 0 {
 			// I think it's okay to take the pointer from the iterator, because we have a lock
@@ -705,24 +721,14 @@ func (l *List) LastCompactionTs() time.Time {
 // We have to apply the filtering before applying (offset, count).
 func (l *List) Uids(opt ListOptions) *protos.List {
 	// Pre-assign length to make it faster.
-	var res []uint64
 	l.RLock()
-	if len(l.mlayer) == 0 {
-		pl := l.plist
-		uidx := sort.Search(len(pl.Uids), func(idx int) bool {
-			return opt.AfterUID < pl.Uids[idx]
-		})
-		res = make([]uint64, len(pl.Uids)-uidx)
-		copy(res, pl.Uids[uidx:])
-	} else {
-		res = make([]uint64, 0, l.length(opt.AfterUID))
-		l.iterate(opt.AfterUID, func(p *protos.Posting) bool {
-			if postingType(p) == x.ValueUid {
-				res = append(res, p.Uid)
-			}
-			return true
-		})
-	}
+	res := make([]uint64, 0, l.length(opt.AfterUID))
+	l.iterate(opt.AfterUID, func(p *protos.Posting) bool {
+		if postingType(p) == x.ValueUid {
+			res = append(res, p.Uid)
+		}
+		return true
+	})
 	l.RUnlock()
 
 	// Do The intersection here as it's optimized.

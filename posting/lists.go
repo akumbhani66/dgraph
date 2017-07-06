@@ -46,8 +46,7 @@ var (
 	commitFraction   = flag.Float64("gentlecommit", 0.10, "Fraction of dirty posting lists to commit every few seconds.")
 	lhmapNumShards   = runtime.NumCPU() * 4
 	dummyPostingList []byte // Used for indexing.
-
-	// expvars
+	elog             trace.EventLog
 )
 
 const (
@@ -81,6 +80,7 @@ func init() {
 		dummyPostingList, err = pl.Marshal()
 		x.Check(err)
 	})
+	elog = trace.NewEventLog("Memory", "")
 }
 
 func (g *syncMarks) create(group uint32) *x.WaterMark {
@@ -167,7 +167,7 @@ func gentleCommit(dirtyMap map[fingerPrint]time.Time, pending chan struct{},
 	select {
 	case pending <- struct{}{}:
 	default:
-		fmt.Printf("Skipping gentleCommit len(syncCh) %v,\n", len(syncCh))
+		elog.Printf("Skipping gentleCommit len(syncCh) %v,\n", len(syncCh))
 		return
 	}
 
@@ -227,7 +227,7 @@ func periodicFree() {
 		idle := float64((ms.HeapIdle - ms.HeapReleased) / MB)
 
 		if inUse+idle > *maxmemory {
-			fmt.Printf("Inuse: %.0f idle: %.0f. Freeing OS memory\n", inUse, idle)
+			elog.Printf("Inuse: %.0f idle: %.0f. Freeing OS memory\n", inUse, idle)
 			x.UpdateMemoryStatus(false)
 			debug.FreeOSMemory()
 		} else {
@@ -254,7 +254,6 @@ func periodicCommit() {
 			if len(dirtyMap) != dsize {
 				dsize = len(dirtyMap)
 				x.DirtyMapSize.Set(int64(dsize))
-				log.Printf("Dirty map size: %d\n", dsize)
 			}
 
 			var ms runtime.MemStats
@@ -278,12 +277,7 @@ func periodicCommit() {
 			// Stop the world, and deal with this first.
 			x.NumGoRoutines.Set(int64(runtime.NumGoroutine()))
 			if inUse > 0.75*(*maxmemory) {
-				log.Printf("Memory usage close to threshold. STW. Allocated MB: %v, inuse: %v, total: %v\n",
-					inUse, idle, inUse+idle)
 				go evictShards(1)
-			} else {
-				log.Printf("Cur: %v. Idle: %v, total: %v, STW: %v, NumGoroutines: %v\n",
-					inUse, idle, inUse+idle, *maxmemory, runtime.NumGoroutine())
 			}
 		}
 	}
@@ -308,7 +302,6 @@ func Init(ps *badger.KV) {
 	pstore = ps
 	lhmaps = new(listMaps)
 	dirtyChan = make(chan fingerPrint, 10000)
-	fmt.Println("Starting commit routine.")
 	syncCh = make(chan syncEntry, 10000)
 
 	go periodicCommit()
@@ -431,7 +424,7 @@ func evictShard(group uint32, shardNum int) {
 		commitOne(l)
 		l.decr()
 	})
-	log.Printf("evicted shard %d from group %d\n", shardNum, group)
+	elog.Printf("evicted shard %d from group %d\n", shardNum, group)
 }
 
 func evictShards(numShards int) {

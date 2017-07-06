@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger"
+	"github.com/juju/ratelimit"
 	"golang.org/x/net/trace"
 
 	"github.com/dgryski/go-farm"
@@ -48,10 +49,11 @@ var (
 	// In such a case, retry.
 	ErrRetry = fmt.Errorf("Temporary Error. Please retry.")
 	// ErrNoValue would be returned if no value was found in the posting list.
-	ErrNoValue   = fmt.Errorf("No value found")
-	emptyPosting = &protos.Posting{}
-	emptyList    = &protos.PostingList{}
-	pendingReads = make(chan struct{}, 1000)
+	ErrNoValue       = fmt.Errorf("No value found")
+	emptyPosting     = &protos.Posting{}
+	emptyList        = &protos.PostingList{}
+	pendingReads     = make(chan struct{}, 1000)
+	bytesReadLimiter = ratelimit.NewBucketWithRate(128*1024*1024.0, 1<<30)
 )
 
 const (
@@ -209,6 +211,7 @@ func getNew(key []byte, pstore *badger.KV) *List {
 	}
 	val := item.Value()
 	x.BytesRead.Add(int64(len(val)))
+	bytesReadLimiter.Wait(int64(len(val)))
 
 	l.plist = postingListPool.Get().(*protos.PostingList)
 	if val != nil {

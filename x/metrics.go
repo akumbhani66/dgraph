@@ -82,21 +82,24 @@ func init() {
 
 	// # hacky: Find better way later
 	go func() {
-		val50 := new(expvar.Int)
-		val90 := new(expvar.Int)
-		val99 := new(expvar.Int)
-		val99_99 := new(expvar.Int)
+		var val50 expvar.Int
+		var val90 expvar.Int
+		var val99 expvar.Int
+		var val99_99 expvar.Int
+		var valMax expvar.Int
 		for {
 			select {
 			case <-ticker.C:
 				val50.Set(PlValueHist.ValueAtQuantile(50.0))
-				PlValuesDst.Set("50", val50)
+				PlValuesDst.Set("50", &val50)
 				val90.Set(PlValueHist.ValueAtQuantile(90.0))
-				PlValuesDst.Set("90", val90)
+				PlValuesDst.Set("90", &val90)
 				val99.Set(PlValueHist.ValueAtQuantile(99.0))
-				PlValuesDst.Set("99", val99)
+				PlValuesDst.Set("99", &val99)
 				val99_99.Set(PlValueHist.ValueAtQuantile(99.99))
-				PlValuesDst.Set("99.99", val99_99)
+				PlValuesDst.Set("99.99", &val99_99)
+				valMax.Set(PlValueHist.Max())
+				PlValuesDst.Set("Max", &valMax)
 			}
 		}
 	}()

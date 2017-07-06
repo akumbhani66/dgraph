@@ -74,7 +74,7 @@ func runMutations(ctx context.Context, edges []*protos.DirectedEdge) error {
 		plist, decr := posting.GetOrCreate(key, gid)
 		if dur := time.Since(t); dur > time.Millisecond {
 			if tr, ok := trace.FromContext(ctx); ok {
-				tr.LazyPrintf("retreived pl %v", dur)
+				tr.LazyPrintf("GetOrCreate took %v", dur)
 			}
 		}
 		defer decr()

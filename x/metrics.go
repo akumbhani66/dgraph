@@ -35,17 +35,17 @@ var (
 	NumMutations  *expvar.Int
 
 	// value at particular point of time
-	PendingQueries    *expvar.Int
-	PendingReads      *expvar.Int
-	PendingProposals  *expvar.Int
-	LhMapSize         *expvar.Int
-	DirtyMapSize      *expvar.Int
-	NumGoRoutines     *expvar.Int
-	MemoryInUse       *expvar.Int
-	HeapIdle          *expvar.Int
-	TotalMemory       *expvar.Int
-	ProposalMemory    *expvar.Int
-	InFlightProposals *expvar.Int
+	PendingQueries   *expvar.Int
+	PendingReads     *expvar.Int
+	PendingProposals *expvar.Int
+	LhMapSize        *expvar.Int
+	DirtyMapSize     *expvar.Int
+	NumGoRoutines    *expvar.Int
+	MemoryInUse      *expvar.Int
+	HeapIdle         *expvar.Int
+	TotalMemory      *expvar.Int
+	ProposalMemory   *expvar.Int
+	ActiveMutations  *expvar.Int
 
 	PredicateStats *expvar.Map
 	PlValuesDst    *expvar.Map
@@ -72,7 +72,7 @@ func init() {
 	HeapIdle = expvar.NewInt("heapIdle")
 	TotalMemory = expvar.NewInt("totalMemory")
 	ProposalMemory = expvar.NewInt("proposalMemory")
-	InFlightProposals = expvar.NewInt("inFlightProposals")
+	ActiveMutations = expvar.NewInt("activeMutations")
 	PredicateStats = expvar.NewMap("predicateStats")
 	PlValuesDst = expvar.NewMap("plValuesDst")
 
@@ -182,9 +182,9 @@ func init() {
 			"proposalMemory",
 			nil, nil,
 		),
-		"inFlightProposals": prometheus.NewDesc(
-			"inFlightProposals",
-			"inFlightProposals",
+		"activeMutations": prometheus.NewDesc(
+			"activeMutations",
+			"activeMutations",
 			nil, nil,
 		),
 		"predicateStats": prometheus.NewDesc(

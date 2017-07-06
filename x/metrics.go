@@ -33,6 +33,7 @@ var (
 	BytesWrite    *expvar.Int
 	EvictedPls    *expvar.Int
 	NumMutations  *expvar.Int
+	NumQueries    *expvar.Int
 
 	// value at particular point of time
 	PendingQueries   *expvar.Int
@@ -46,6 +47,7 @@ var (
 	TotalMemory      *expvar.Int
 	ProposalMemory   *expvar.Int
 	ActiveMutations  *expvar.Int
+	ServerHealth     *expvar.Int
 
 	PredicateStats *expvar.Map
 	PlValuesDst    *expvar.Map
@@ -65,6 +67,8 @@ func init() {
 	EvictedPls = expvar.NewInt("evictedPls")
 	NumMutations = expvar.NewInt("numMutations")
 	PendingQueries = expvar.NewInt("pendingQueries")
+	NumQueries = expvar.NewInt("numQueries")
+	ServerHealth = expvar.NewInt("serverHealth")
 	DirtyMapSize = expvar.NewInt("dirtyMapSize")
 	LhMapSize = expvar.NewInt("lhMapSize")
 	NumGoRoutines = expvar.NewInt("numGoRoutines")
@@ -87,6 +91,7 @@ func init() {
 		var val99 expvar.Int
 		var val99_99 expvar.Int
 		var valMax expvar.Int
+		var err error
 		for {
 			select {
 			case <-ticker.C:
@@ -100,6 +105,11 @@ func init() {
 				PlValuesDst.Set("99.99", &val99_99)
 				valMax.Set(PlValueHist.Max())
 				PlValuesDst.Set("Max", &valMax)
+				if err = HealthCheck(); err == nil {
+					ServerHealth.Set(1)
+				} else {
+					ServerHealth.Set(0)
+				}
 			}
 		}
 	}()
@@ -148,6 +158,16 @@ func init() {
 		"pendingQueries": prometheus.NewDesc(
 			"pending_queries",
 			"pendingQueries",
+			nil, nil,
+		),
+		"numQueries": prometheus.NewDesc(
+			"numQueries",
+			"numQueries",
+			nil, nil,
+		),
+		"serverHealth": prometheus.NewDesc(
+			"serverHealth",
+			"serverHealth",
 			nil, nil,
 		),
 		"dirtyMapSize": prometheus.NewDesc(

@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"math/rand"
 	"net"
 	"net/http"
@@ -175,7 +176,8 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	x.PendingQueries.Add(1)
-	//defer func() { x.PendingQueries.Add(-1) }()
+	x.NumQueries.Add(1)
+	defer func() { x.PendingQueries.Add(-1) }()
 
 	addCorsHeaders(w)
 	if r.Method == "OPTIONS" {
@@ -462,7 +464,8 @@ func (s *grpcServer) Run(ctx context.Context,
 		return resp, err
 	}
 	x.PendingQueries.Add(1)
-	//defer func() { x.PendingQueries.Add(-1) }()
+	x.NumQueries.Add(1)
+	defer func() { x.PendingQueries.Add(-1) }()
 	if ctx.Err() != nil {
 		return resp, ctx.Err()
 	}
@@ -642,7 +645,7 @@ func serveGRPC(l net.Listener) {
 	s := grpc.NewServer(grpc.CustomCodec(&query.Codec{}),
 		grpc.MaxRecvMsgSize(x.GrpcMaxSize),
 		grpc.MaxSendMsgSize(x.GrpcMaxSize),
-		grpc.MaxConcurrentStreams(1000))
+		grpc.MaxConcurrentStreams(math.MaxUint32))
 	protos.RegisterDgraphServer(s, &grpcServer{})
 	err := s.Serve(l)
 	log.Printf("gRpc server stopped : %s", err.Error())

@@ -175,7 +175,7 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	x.PendingQueries.Add(1)
-	defer func() { x.PendingQueries.Add(-1) }()
+	//defer func() { x.PendingQueries.Add(-1) }()
 
 	addCorsHeaders(w)
 	if r.Method == "OPTIONS" {
@@ -462,7 +462,7 @@ func (s *grpcServer) Run(ctx context.Context,
 		return resp, err
 	}
 	x.PendingQueries.Add(1)
-	defer func() { x.PendingQueries.Add(-1) }()
+	//defer func() { x.PendingQueries.Add(-1) }()
 	if ctx.Err() != nil {
 		return resp, ctx.Err()
 	}

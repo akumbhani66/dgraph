@@ -209,9 +209,6 @@ func getNew(key []byte, pstore *badger.KV) *List {
 	}
 	val := item.Value()
 	x.BytesRead.Add(int64(len(val)))
-	if err = x.PlValueHist.RecordValue(int64(len(val))); err != nil {
-		log.Fatalf("Unable to record hist: %v", err)
-	}
 
 	l.plist = postingListPool.Get().(*protos.PostingList)
 	if val != nil {
@@ -703,6 +700,9 @@ func (l *List) SyncIfDirty(ctx context.Context) (committed bool, err error) {
 		postingListPool.Put(l.plist)
 	}
 	l.plist = final
+	if err = x.PlValueHist.RecordValue(int64(len(final.Uids))); err != nil {
+		log.Fatalf("Unable to record hist: %v", err)
+	}
 
 	ce := syncEntry{
 		key:     l.key,

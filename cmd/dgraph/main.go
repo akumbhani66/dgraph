@@ -641,7 +641,8 @@ func serveGRPC(l net.Listener) {
 	defer func() { finishCh <- struct{}{} }()
 	s := grpc.NewServer(grpc.CustomCodec(&query.Codec{}),
 		grpc.MaxRecvMsgSize(x.GrpcMaxSize),
-		grpc.MaxSendMsgSize(x.GrpcMaxSize))
+		grpc.MaxSendMsgSize(x.GrpcMaxSize),
+		grpc.MaxConcurrentStreams(1000))
 	protos.RegisterDgraphServer(s, &grpcServer{})
 	err := s.Serve(l)
 	log.Printf("gRpc server stopped : %s", err.Error())

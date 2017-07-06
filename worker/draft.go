@@ -505,7 +505,7 @@ func (n *node) process(e raftpb.Entry, pending chan struct{}) {
 	}
 
 	pending <- struct{}{} // This will block until we can write to it.
-	x.InFlightProposals.Set(int64(pending))
+	x.InFlightProposals.Set(int64(len(pending)))
 	var proposal protos.Proposal
 	x.AssertTrue(len(e.Data) > 0)
 	x.Checkf(proposal.Unmarshal(e.Data[1:]), "Unable to parse entry: %+v", e)

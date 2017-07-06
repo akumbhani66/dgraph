@@ -106,6 +106,9 @@ func (s *listMapShard) eachWithDelete(f func(key uint64, val *List)) {
 		delete(s.m, k)
 		f(k, v)
 	}
+	// Release the old map back by creating a new one.
+	s.m = make(map[uint64]*List)
+
 	x.LhMapSize.Add(int64(-1 * l))
 	x.EvictedPls.Add(int64(l))
 }

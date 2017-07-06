@@ -335,17 +335,9 @@ func proposeOrSend(ctx context.Context, gid uint32, m *protos.Mutations, che cha
 	defer pl.Put(conn)
 
 	c := protos.NewWorkerClient(conn)
-	ch := make(chan error, 1)
-	go func() {
-		_, err = c.Mutate(ctx, m)
-		ch <- err
-	}()
-	select {
-	case <-ctx.Done():
-		che <- ctx.Err()
-	case err := <-ch:
-		che <- err
-	}
+	// TODO: Add back timeout ??
+	_, err = c.Mutate(ctx, m)
+	che <- err
 }
 
 // addToMutationArray adds the edges to the appropriate index in the mutationArray,
